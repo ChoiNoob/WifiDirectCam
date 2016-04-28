@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">DirectCam</string>
+    <string name="action_settings">Settings</string>
+    <string name="title_activity_server">ServerActivity</string>
+
+    <string name="share">Sectec app for share</string>
+    <string name="dontshare">Nothing the application for share.</string>
+    <string name="title_activity_client_activirty">ClientActivirty</string>
+
+
+</resources>
