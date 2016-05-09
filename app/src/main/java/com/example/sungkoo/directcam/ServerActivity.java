@@ -4,8 +4,12 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.hardware.Camera;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
+import android.net.wifi.p2p.WifiP2pManager;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Message;
 import android.util.Log;
 import android.view.View;
 import android.view.Window;
@@ -14,10 +18,22 @@ import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.ServerSocket;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.logging.Handler;
+import java.util.logging.LogRecord;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
 
 public class ServerActivity extends Activity {
     private static String TAG = "CAMERA";
@@ -27,7 +43,23 @@ public class ServerActivity extends Activity {
     private CameraPreview mPreview;
     public static String mediapath;
 
+    ServerSocket    serverSocket= null;
+    Socket          clientSocket= null;
 
+    android.os.Handler handler = new android.os.Handler(){
+        @Override
+        public void handleMessage(Message msg) {
+            super.handleMessage(msg);
+
+            mCamera.takePicture(null, null, mPicture);
+        }
+
+    };
+
+
+
+
+    Thread  thread;
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -45,26 +77,86 @@ public class ServerActivity extends Activity {
             finish();
         }
 
+
+
+
         // 카메라 인스턴스 생성
         mCamera = getCameraInstance();
 
         // 프리뷰창을 생성하고 액티비티의 레아이웃으로 지정
+
         mPreview = new CameraPreview(this, mCamera);
         FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview);
         preview.addView(mPreview);
+
+        thread= new Thread(new Runnable(){
+
+            @Override
+            public void run() {
+                try{
+                    Log.d("jmlee", "wait for accept");
+                    clientSocket = serverSocket.accept();
+                    Log.d("jmlee", "after for accept");
+                } catch (IOException e) {
+                     Log.d("jmlee", "error" + e.toString());
+                }
+
+
+
+                while(true) {
+                    count= count%5;
+                    count++;
+                    //mCamera.takePicture(null, null, mPicture);
+                    handler.sendEmptyMessage(1);
+                    try {
+                        Thread.sleep(500);
+                        Log.d(TAG,"count="+count);
+                    } catch (InterruptedException e) {
+                        break;
+                    }
+                }
+
+            }
+        });
+
+        WifiManager wifiManager = (WifiManager) getSystemService(Activity.WIFI_SERVICE);
+        WifiInfo wifiInfo = wifiManager.getConnectionInfo();
+
+        int ip = wifiInfo.getIpAddress();
+
+        String ipString = String.format(
+                "%d.%d.%d.%d",
+                (ip & 0xff),
+                (ip >> 8 & 0xff),
+                (ip >> 16 & 0xff),
+                (ip >> 24 & 0xff));
+
+        Toast.makeText(getApplicationContext(),ipString,Toast.LENGTH_LONG).show();
+
+        try {
+            serverSocket = new ServerSocket(5000);
+        }catch(IOException e){
+
+        }
+        thread.start();
+
 
         // 촬영버튼 등록
         Button captureButton = (Button) findViewById(R.id.button_capture);
         captureButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                thread.interrupt();
+                /*
                 if(count<5)
                 count++;
                 else
                 count=0;
                 mCamera.takePicture(null,null,mPicture);
+                */
             }
         });
+
     }
 
     /**
@@ -131,6 +223,22 @@ public class ServerActivity extends Activity {
         @Override
         public void onPictureTaken(byte[] data, Camera camera) {
             // JPEG 이미지가 byte[] 형태로 들어옵니다.
+            Log.d(TAG, "PictureCallback");
+
+
+            //clientSocket.getOutputStream();
+            try {
+                BufferedOutputStream bos = new BufferedOutputStream(clientSocket.getOutputStream());
+
+                bos.write(data);
+                bos.flush();
+
+            }catch (IOException e){
+                Log.d("jmlee", e.toString());
+            }
+
+
+            /*
             File pictureFile = getOutputMediaFile();
             if(pictureFile == null){
                 Toast.makeText(mContext, "Error camera image saving", Toast.LENGTH_SHORT).show();
@@ -142,12 +250,16 @@ public class ServerActivity extends Activity {
                 fos.write(data);
                 fos.close();
                 //Thread.sleep(500);
-                mCamera.startPreview();
+                //mCamera.startPreview();
             } catch (FileNotFoundException e) {
                 Log.d(TAG, "File not found: " + e.getMessage());
             } catch (IOException e) {
                 Log.d(TAG, "Error accessing file: " + e.getMessage());
             }
+               */
+
+
         }
+
     };
 }
