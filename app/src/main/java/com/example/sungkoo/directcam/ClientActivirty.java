@@ -23,10 +23,35 @@ import java.io.IOException;
 import java.net.Socket;
 
 public class ClientActivirty extends AppCompatActivity {
-    Socket      socket=null;
-    android.os.Handler handler=null;
+    Socket socket = null;
+    android.os.Handler handler = null;
 
     public int count;
+    public static String mediapath;
+
+    private static File getOutputMediaFile(int test){
+        //SD ī�尡 ����Ʈ �Ǿ��ִ��� ���� Ȯ��
+        // Environment.getExternalStorageState() �� ����Ʈ ���� Ȯ�� �����մϴ�
+        File mediaStorageDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "MyCameraApp");
+
+        // ���� ��ζ�� ���� ����
+        if(!mediaStorageDir.exists()){
+            if(! mediaStorageDir.mkdirs()){
+                Log.d("MyCamera", "failed to create directory");
+                return null;
+            }
+        }
+
+        // ���ϸ��� ������ ����, ���⼱ �ð����� ���ϸ� �ߺ��� ���Ѵ�
+        String timestamp = "aaa"+test;
+        File mediaFile;
+
+        mediaFile = new File(mediaStorageDir.getPath() + File.separator + "IMG_" + timestamp + ".jpg");
+        Log.i("MyCamera", "Saved at" + Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES));
+        System.out.println(mediaFile.getPath());
+        mediapath = mediaFile.getPath();
+        return mediaFile;
+    }
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
