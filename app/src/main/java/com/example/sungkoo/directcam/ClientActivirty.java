@@ -76,7 +76,7 @@ public class ClientActivirty extends AppCompatActivity {
                         catch(
                         IOException e
                         )
-
+			//commit test
                         {
                             Log.d("jmlee", e.toString());
                         }
