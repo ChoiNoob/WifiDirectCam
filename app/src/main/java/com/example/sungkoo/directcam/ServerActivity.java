@@ -6,7 +6,6 @@ import android.content.pm.PackageManager;
 import android.hardware.Camera;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
-import android.net.wifi.p2p.WifiP2pManager;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Message;
@@ -18,22 +17,12 @@ import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 
-import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.ServerSocket;
-
+import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.logging.Handler;
-import java.util.logging.LogRecord;
-import android.net.wifi.WifiInfo;
-import android.net.wifi.WifiManager;
 
 public class ServerActivity extends Activity {
     private static String TAG = "CAMERA";
@@ -104,14 +93,17 @@ public class ServerActivity extends Activity {
 
 
                 while(true) {
+
                     count= count%5;
                     count++;
-                    //mCamera.takePicture(null, null, mPicture);
+                    mCamera.takePicture(null, null, mPicture);
                     handler.sendEmptyMessage(1);
                     try {
-                        Thread.sleep(500);
+                        Thread.sleep(1000);
+                       mCamera.startPreview();
                         Log.d(TAG,"count="+count);
                     } catch (InterruptedException e) {
+                        Log.d("inter",e.toString());
                         break;
                     }
                 }
@@ -209,7 +201,7 @@ public class ServerActivity extends Activity {
         String timestamp = "a" + count;
         File mediaFile;
 
-        mediaFile = new File(mediaStorageDir.getPath() + File.separator + "IMG_" + timestamp + ".jpg");
+        mediaFile = new File(mediaStorageDir.getPath() + File.separator + "IMG_" + timestamp );
         Log.i("MyCamera", "Saved at" + Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES));
         System.out.println(mediaFile.getPath());
         mediapath = mediaFile.getPath();
@@ -223,15 +215,26 @@ public class ServerActivity extends Activity {
         @Override
         public void onPictureTaken(byte[] data, Camera camera) {
             // JPEG 이미지가 byte[] 형태로 들어옵니다.
+
             Log.d(TAG, "PictureCallback");
 
 
             //clientSocket.getOutputStream();
             try {
-                BufferedOutputStream bos = new BufferedOutputStream(clientSocket.getOutputStream());
 
+                //int data_size= data.length;
+                BufferedOutputStream bos = new BufferedOutputStream(clientSocket.getOutputStream());
+                DataOutputStream imagedata = new DataOutputStream(bos);
+                imagedata.writeInt(data.length);
+                Log.d("length","length"+data.length);
+                imagedata.write(data);
+                Log.d("data transfer","data");
+                imagedata.flush();
+
+                /*bos.write((byte)data_size);
                 bos.write(data);
-                bos.flush();
+                bos.flush();*/
+               // camera.startPreview();
 
             }catch (IOException e){
                 Log.d("jmlee", e.toString());
