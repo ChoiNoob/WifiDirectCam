@@ -6,7 +6,6 @@ import android.content.pm.PackageManager;
 import android.hardware.Camera;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
-import android.net.wifi.p2p.WifiP2pManager;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Message;
@@ -18,22 +17,12 @@ import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 
-import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.ServerSocket;
-
+import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.logging.Handler;
-import java.util.logging.LogRecord;
-import android.net.wifi.WifiInfo;
-import android.net.wifi.WifiManager;
 
 public class ServerActivity extends Activity {
     private static String TAG = "CAMERA";
@@ -46,12 +35,15 @@ public class ServerActivity extends Activity {
     ServerSocket    serverSocket= null;
     Socket          clientSocket= null;
 
+    BufferedOutputStream bos;// = new BufferedOutputStream(clientSocket.getOutputStream());
+    DataOutputStream imagedata;// = new DataOutputStream(bos);
+
     android.os.Handler handler = new android.os.Handler(){
         @Override
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
-
             mCamera.takePicture(null, null, mPicture);
+
         }
 
     };
@@ -77,17 +69,14 @@ public class ServerActivity extends Activity {
             finish();
         }
 
-
-
-
         // 카메라 인스턴스 생성
         mCamera = getCameraInstance();
 
         // 프리뷰창을 생성하고 액티비티의 레아이웃으로 지정
-
         mPreview = new CameraPreview(this, mCamera);
         FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview);
         preview.addView(mPreview);
+        mCamera.startPreview();
 
         thread= new Thread(new Runnable(){
 
@@ -95,25 +84,38 @@ public class ServerActivity extends Activity {
             public void run() {
                 try{
                     Log.d("jmlee", "wait for accept");
+
                     clientSocket = serverSocket.accept();
+                    bos = new BufferedOutputStream(clientSocket.getOutputStream());
+                    imagedata = new DataOutputStream(bos);
+
                     Log.d("jmlee", "after for accept");
                 } catch (IOException e) {
                      Log.d("jmlee", "error" + e.toString());
                 }
-
-
+                int ticker=0;
 
                 while(true) {
-                    count= count%5;
+
+                    //count= count%5;
                     count++;
-                    //mCamera.takePicture(null, null, mPicture);
-                    handler.sendEmptyMessage(1);
                     try {
-                        Thread.sleep(500);
+                        Thread.sleep(45);
+                        ticker++;
                         Log.d(TAG,"count="+count);
                     } catch (InterruptedException e) {
+                        Log.d("inter",e.toString());
                         break;
                     }
+                    //mCamera.startPreview();
+
+                    //mCamera.takePicture(null, null, mPicture);
+
+                    if(ticker%1==0) {
+                       handler.sendEmptyMessage(1);
+
+                    }
+
                 }
 
             }
@@ -209,7 +211,7 @@ public class ServerActivity extends Activity {
         String timestamp = "a" + count;
         File mediaFile;
 
-        mediaFile = new File(mediaStorageDir.getPath() + File.separator + "IMG_" + timestamp + ".jpg");
+        mediaFile = new File(mediaStorageDir.getPath() + File.separator + "IMG_" + timestamp );
         Log.i("MyCamera", "Saved at" + Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES));
         System.out.println(mediaFile.getPath());
         mediapath = mediaFile.getPath();
@@ -225,41 +227,17 @@ public class ServerActivity extends Activity {
             // JPEG 이미지가 byte[] 형태로 들어옵니다.
             Log.d(TAG, "PictureCallback");
 
-
             //clientSocket.getOutputStream();
             try {
-                BufferedOutputStream bos = new BufferedOutputStream(clientSocket.getOutputStream());
-
-                bos.write(data);
-                bos.flush();
+                imagedata.writeInt(data.length);
+                imagedata.write(data, 0, data.length);
+                imagedata.flush();
+                Log.d("length","length="+data.length);
 
             }catch (IOException e){
                 Log.d("jmlee", e.toString());
             }
-
-
-            /*
-            File pictureFile = getOutputMediaFile();
-            if(pictureFile == null){
-                Toast.makeText(mContext, "Error camera image saving", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            try{
-                FileOutputStream fos = new FileOutputStream(pictureFile);
-                fos.write(data);
-                fos.close();
-                //Thread.sleep(500);
-                //mCamera.startPreview();
-            } catch (FileNotFoundException e) {
-                Log.d(TAG, "File not found: " + e.getMessage());
-            } catch (IOException e) {
-                Log.d(TAG, "Error accessing file: " + e.getMessage());
-            }
-               */
-
-
+            mCamera.startPreview();
         }
-
     };
 }
