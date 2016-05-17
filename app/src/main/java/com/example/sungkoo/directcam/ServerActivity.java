@@ -35,12 +35,15 @@ public class ServerActivity extends Activity {
     ServerSocket    serverSocket= null;
     Socket          clientSocket= null;
 
+    BufferedOutputStream bos;// = new BufferedOutputStream(clientSocket.getOutputStream());
+    DataOutputStream imagedata;// = new DataOutputStream(bos);
+
     android.os.Handler handler = new android.os.Handler(){
         @Override
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
-
             mCamera.takePicture(null, null, mPicture);
+
         }
 
     };
@@ -66,17 +69,14 @@ public class ServerActivity extends Activity {
             finish();
         }
 
-
-
-
         // 카메라 인스턴스 생성
         mCamera = getCameraInstance();
 
         // 프리뷰창을 생성하고 액티비티의 레아이웃으로 지정
-
         mPreview = new CameraPreview(this, mCamera);
         FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview);
         preview.addView(mPreview);
+        mCamera.startPreview();
 
         thread= new Thread(new Runnable(){
 
@@ -84,28 +84,38 @@ public class ServerActivity extends Activity {
             public void run() {
                 try{
                     Log.d("jmlee", "wait for accept");
+
                     clientSocket = serverSocket.accept();
+                    bos = new BufferedOutputStream(clientSocket.getOutputStream());
+                    imagedata = new DataOutputStream(bos);
+
                     Log.d("jmlee", "after for accept");
                 } catch (IOException e) {
                      Log.d("jmlee", "error" + e.toString());
                 }
-
-
+                int ticker=0;
 
                 while(true) {
 
-                    count= count%5;
+                    //count= count%5;
                     count++;
-                    mCamera.takePicture(null, null, mPicture);
-                    handler.sendEmptyMessage(1);
                     try {
-                        Thread.sleep(1000);
-                       mCamera.startPreview();
+                        Thread.sleep(45);
+                        ticker++;
                         Log.d(TAG,"count="+count);
                     } catch (InterruptedException e) {
                         Log.d("inter",e.toString());
                         break;
                     }
+                    //mCamera.startPreview();
+
+                    //mCamera.takePicture(null, null, mPicture);
+
+                    if(ticker%1==0) {
+                       handler.sendEmptyMessage(1);
+
+                    }
+
                 }
 
             }
@@ -215,54 +225,19 @@ public class ServerActivity extends Activity {
         @Override
         public void onPictureTaken(byte[] data, Camera camera) {
             // JPEG 이미지가 byte[] 형태로 들어옵니다.
-
             Log.d(TAG, "PictureCallback");
-
 
             //clientSocket.getOutputStream();
             try {
-
-                //int data_size= data.length;
-                BufferedOutputStream bos = new BufferedOutputStream(clientSocket.getOutputStream());
-                DataOutputStream imagedata = new DataOutputStream(bos);
                 imagedata.writeInt(data.length);
-                Log.d("length","length"+data.length);
-                imagedata.write(data);
-                Log.d("data transfer","data");
+                imagedata.write(data, 0, data.length);
                 imagedata.flush();
-
-                /*bos.write((byte)data_size);
-                bos.write(data);
-                bos.flush();*/
-               // camera.startPreview();
+                Log.d("length","length="+data.length);
 
             }catch (IOException e){
                 Log.d("jmlee", e.toString());
             }
-
-
-            /*
-            File pictureFile = getOutputMediaFile();
-            if(pictureFile == null){
-                Toast.makeText(mContext, "Error camera image saving", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            try{
-                FileOutputStream fos = new FileOutputStream(pictureFile);
-                fos.write(data);
-                fos.close();
-                //Thread.sleep(500);
-                //mCamera.startPreview();
-            } catch (FileNotFoundException e) {
-                Log.d(TAG, "File not found: " + e.getMessage());
-            } catch (IOException e) {
-                Log.d(TAG, "Error accessing file: " + e.getMessage());
-            }
-               */
-
-
+            mCamera.startPreview();
         }
-
     };
 }
