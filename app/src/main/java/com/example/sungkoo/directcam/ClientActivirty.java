@@ -58,6 +58,7 @@ public class ClientActivirty extends AppCompatActivity {
         setContentView(R.layout.activity_client_activirty);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+        socket= SelectActivity.socket;
 
 
         handler = new android.os.Handler() {
@@ -95,7 +96,7 @@ public class ClientActivirty extends AppCompatActivity {
                                 int count = 0;
 
                                 // if (!info.isGroupOwner)
-                                socket = new Socket("192.168.0.33", 5000);
+                                //socket = new Socket("192.168.0.33", 5000);
                                 // else
                                 //Log.d("socket", "ConnectError");
                                 File pictureFile = getOutputMediaFile(test++);
