@@ -4,59 +4,56 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.hardware.Camera;
-import android.net.wifi.WifiInfo;
-import android.net.wifi.WifiManager;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Message;
 import android.util.Log;
-import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
-import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 
 import java.io.BufferedOutputStream;
 import java.io.DataOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 
 public class ServerActivity extends Activity {
+    Socket  socket;
     private static String TAG = "CAMERA";
     private static int count;
     private Context mContext = this;
     private Camera mCamera;
     private CameraPreview mPreview;
     public static String mediapath;
+    public static boolean ack= false;
 
     ServerSocket    serverSocket= null;
     Socket          clientSocket= null;
 
     BufferedOutputStream bos;// = new BufferedOutputStream(clientSocket.getOutputStream());
-    DataOutputStream imagedata;// = new DataOutputStream(bos);
+    DataOutputStream outputStream;// = new DataOutputStream(bos);
+
+    byte[]  b1, b2;
 
     android.os.Handler handler = new android.os.Handler(){
         @Override
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
+            ack=false;
             mCamera.takePicture(null, null, mPicture);
+
 
         }
 
     };
-
-
-
 
     Thread  thread;
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        count=0;
+        socket= SelectActivity.socket;
 
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
@@ -78,87 +75,60 @@ public class ServerActivity extends Activity {
         preview.addView(mPreview);
         mCamera.startPreview();
 
-        thread= new Thread(new Runnable(){
-
-            @Override
-            public void run() {
-                try{
-                    Log.d("jmlee", "wait for accept");
-
-                    clientSocket = serverSocket.accept();
-                    bos = new BufferedOutputStream(clientSocket.getOutputStream());
-                    imagedata = new DataOutputStream(bos);
-
-                    Log.d("jmlee", "after for accept");
-                } catch (IOException e) {
-                     Log.d("jmlee", "error" + e.toString());
-                }
-                int ticker=0;
-
-                while(true) {
-
-                    //count= count%5;
-                    count++;
-                    try {
-                        Thread.sleep(45);
-                        ticker++;
-                        Log.d(TAG,"count="+count);
-                    } catch (InterruptedException e) {
-                        Log.d("inter",e.toString());
-                        break;
-                    }
-                    //mCamera.startPreview();
-
-                    //mCamera.takePicture(null, null, mPicture);
-
-                    if(ticker%1==0) {
-                       handler.sendEmptyMessage(1);
-
-                    }
-
-                }
-
-            }
-        });
-
-        WifiManager wifiManager = (WifiManager) getSystemService(Activity.WIFI_SERVICE);
-        WifiInfo wifiInfo = wifiManager.getConnectionInfo();
-
-        int ip = wifiInfo.getIpAddress();
-
-        String ipString = String.format(
-                "%d.%d.%d.%d",
-                (ip & 0xff),
-                (ip >> 8 & 0xff),
-                (ip >> 16 & 0xff),
-                (ip >> 24 & 0xff));
-
-        Toast.makeText(getApplicationContext(),ipString,Toast.LENGTH_LONG).show();
 
         try {
-            serverSocket = new ServerSocket(5000);
+            bos = new BufferedOutputStream(socket.getOutputStream());
+            outputStream = new DataOutputStream(bos);
         }catch(IOException e){
 
         }
-        thread.start();
 
-
-        // 촬영버튼 등록
-        Button captureButton = (Button) findViewById(R.id.button_capture);
-        captureButton.setOnClickListener(new View.OnClickListener() {
+        thread= new Thread(new Runnable(){
             @Override
-            public void onClick(View v) {
-                thread.interrupt();
-                /*
-                if(count<5)
-                count++;
-                else
-                count=0;
-                mCamera.takePicture(null,null,mPicture);
-                */
+            public void run() {
+                try {
+                    Thread.sleep(500);
+                }catch(InterruptedException e){
+                }
+                handler.sendEmptyMessage(1);
+
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                }
+
+                while(true) {
+                   try {
+                       //Thread.sleep(100);
+
+                       while(ServerActivity.ack==false){
+
+                           Thread.sleep(50);
+                       }
+
+                       handler.sendEmptyMessage(1);
+
+                       b2=b1;
+                       b1=null;
+                       try {
+                           outputStream.writeInt(b2.length);
+                           outputStream.write(b2, 0, b2.length);
+                           outputStream.flush();
+                       }catch(IOException e){
+
+                       }
+
+
+
+                   } catch (InterruptedException e) {
+                        break;
+                    }
+
+                }
             }
         });
-
+        thread.start();
+        ack= true;
     }
 
     /**
@@ -191,53 +161,25 @@ public class ServerActivity extends Activity {
         return mCamera;
     }
 
-    /** 이미지를 저장할 파일 객체를 생성 
-     * 저장되면 Picture 폴더에 MyCameraApp 폴더안에 저장된다. (MyCameraApp 폴더명은 변경가능)
-     */
-    private static File getOutputMediaFile(){
-        //SD 카드가 마운트 되어있는지 먼저 확인
-        // Environment.getExternalStorageState() 로 마운트 상태 확인 가능합니다
-        File mediaStorageDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "MyCameraApp");
-
-        // 없는 경로라면 따로 생성
-        if(!mediaStorageDir.exists()){
-            if(! mediaStorageDir.mkdirs()){
-                Log.d("MyCamera", "failed to create directory");
-                return null;
-            }
-        }
-
-        // 파일명을 적당히 생성, 여기선 시간으로 파일명 중복을 피한다
-        String timestamp = "a" + count;
-        File mediaFile;
-
-        mediaFile = new File(mediaStorageDir.getPath() + File.separator + "IMG_" + timestamp );
-        Log.i("MyCamera", "Saved at" + Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES));
-        System.out.println(mediaFile.getPath());
-        mediapath = mediaFile.getPath();
-        return mediaFile;
-    }
-    public String getMediapath(){
-        return mediapath;
-    }
-
     private Camera.PictureCallback mPicture = new Camera.PictureCallback() {
         @Override
         public void onPictureTaken(byte[] data, Camera camera) {
-            // JPEG 이미지가 byte[] 형태로 들어옵니다.
-            Log.d(TAG, "PictureCallback");
+            b1= data;
 
-            //clientSocket.getOutputStream();
+/*
             try {
-                imagedata.writeInt(data.length);
-                imagedata.write(data, 0, data.length);
-                imagedata.flush();
-                Log.d("length","length="+data.length);
+                outputStream.writeInt(data.length);
+                outputStream.write(data, 0, data.length);
+                outputStream.flush();
 
             }catch (IOException e){
-                Log.d("jmlee", e.toString());
             }
+
+*/
             mCamera.startPreview();
+            ack= true;
+
         }
     };
+
 }
