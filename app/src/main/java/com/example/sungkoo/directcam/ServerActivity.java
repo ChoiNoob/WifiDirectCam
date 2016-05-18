@@ -12,8 +12,11 @@ import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -27,14 +30,20 @@ public class ServerActivity extends Activity {
     private CameraPreview mPreview;
     public static String mediapath;
     public static boolean ack= false;
-
+    public Boolean result=false;
     ServerSocket    serverSocket= null;
     Socket          clientSocket= null;
 
     BufferedOutputStream bos;// = new BufferedOutputStream(clientSocket.getOutputStream());
-    DataOutputStream outputStream;// = new DataOutputStream(bos);
+    DataOutputStream dos;// = new DataOutputStream(bos);
+    BufferedInputStream bis;
+    DataInputStream dis;
+    FileOutputStream fos;
+
 
     byte[]  b1, b2;
+    Thread  thread_datatransfer;
+    Thread  thread_wait;
 
     android.os.Handler handler = new android.os.Handler(){
         @Override
@@ -48,7 +57,7 @@ public class ServerActivity extends Activity {
 
     };
 
-    Thread  thread;
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -77,57 +86,114 @@ public class ServerActivity extends Activity {
 
 
         try {
+
+            bis = new BufferedInputStream(socket.getInputStream());
+            dis = new DataInputStream(bis);
             bos = new BufferedOutputStream(socket.getOutputStream());
-            outputStream = new DataOutputStream(bos);
+            dos = new DataOutputStream(bos);
+
         }catch(IOException e){
 
         }
 
-        thread= new Thread(new Runnable(){
+
+
+
+        thread_wait = new Thread(new Runnable() {
             @Override
             public void run() {
+                try{
+                    Thread.sleep(500);
+                }catch (InterruptedException e){
+
+                }
+
+                while (true) {
+                    try {
+                        Log.d("start1", "result=" + result);
+                        Thread.sleep(1000);
+                        result = dis.readBoolean();
+
+                        if (result) {
+                            Log.d("start2", "result=" + result);
+                            thread_datatransfer.start();
+                            break;
+                        }
+                        //dis.close();
+                    }catch (IOException e){
+
+                    }catch (InterruptedException e){
+
+                    }
+
+                }
+
+            }
+        });
+        thread_wait.start();
+
+
+        thread_datatransfer= new Thread(new Runnable(){
+            @Override
+            public void run() {
+                    Log.d("start3", "result=" + result);
+
+
+
                 try {
                     Thread.sleep(500);
                 }catch(InterruptedException e){
                 }
                 handler.sendEmptyMessage(1);
 
-                try {
+              /*  try {
                     Thread.sleep(100);
                 } catch (InterruptedException e) {
                 }
-
+*/
+               // if(result){
                 while(true) {
+                    Log.d("start4","result="+result);
+
                    try {
-                       //Thread.sleep(100);
+                       //result = dis.readBoolean();
+                       Thread.sleep(100);
 
                        while(ServerActivity.ack==false){
-
                            Thread.sleep(50);
                        }
+
 
                        handler.sendEmptyMessage(1);
 
                        b2=b1;
                        b1=null;
                        try {
-                           outputStream.writeInt(b2.length);
-                           outputStream.write(b2, 0, b2.length);
-                           outputStream.flush();
+                           Log.d("bokyung", "data");
+                           dos.writeInt(b2.length);
+                           Log.d("bokyung","length="+b2.length);
+                           dos.write(b2, 0, b2.length);
+
+
+                           dos.flush();
+                           Log.d("bokyung", "hihihi");
                        }catch(IOException e){
 
+                           Log.d("bokyung","error");
                        }
 
 
 
                    } catch (InterruptedException e) {
                         break;
-                    }
+                    }/*catch (IOException e) {
+                   }*/
 
+                  }
                 }
-            }
+           //}
         });
-        thread.start();
+       // thread_datatransfer.start();
         ack= true;
     }
 
