@@ -32,7 +32,6 @@ import android.provider.Settings;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
-import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
@@ -46,7 +45,7 @@ import com.example.sungkoo.directcam.DeviceListFragment.DeviceActionListener;
  * The application should also register a BroadcastReceiver for notification of
  * WiFi state related events.
  */
-public class WiFiDirectActivity extends Activity implements ChannelListener, DeviceActionListener {
+public class WiFiDirectActivity extends Activity implements ChannelListener, DeviceActionListener{
 
     public static final String TAG = "wifidirectdemo";
     private WifiP2pManager manager;
@@ -56,6 +55,7 @@ public class WiFiDirectActivity extends Activity implements ChannelListener, Dev
     private final IntentFilter intentFilter = new IntentFilter();
     private Channel channel;
     private BroadcastReceiver receiver = null;
+    public Intent TestIntent;
 
     /**
      * @param isWifiP2pEnabled the isWifiP2pEnabled to set
@@ -109,6 +109,10 @@ public class WiFiDirectActivity extends Activity implements ChannelListener, Dev
         }
         final DeviceListFragment fragment = (DeviceListFragment) getFragmentManager()
                 .findFragmentById(R.id.frag_list);
+
+        //jmlee
+        fragment.parent= this;
+
         fragment.onInitiateDiscovery();
         manager.discoverPeers(channel, new WifiP2pManager.ActionListener() {
 
@@ -165,7 +169,7 @@ public class WiFiDirectActivity extends Activity implements ChannelListener, Dev
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
-        inflater.inflate(R.menu.action_items, menu);
+        //inflater.inflate(R.menu.action_items, menu);
         return true;
     }
 
@@ -190,6 +194,10 @@ public class WiFiDirectActivity extends Activity implements ChannelListener, Dev
             @Override
             public void onSuccess() {
                 // WiFiDirectBroadcastReceiver will notify us. Ignore for now.
+
+                Toast.makeText(getApplicationContext(), "jmlee OnSuccess", Toast.LENGTH_LONG).show();
+
+
             }
 
             @Override

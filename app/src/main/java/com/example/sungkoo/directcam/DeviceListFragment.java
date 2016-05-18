@@ -16,6 +16,7 @@
 
 package com.example.sungkoo.directcam;
 
+import android.app.Activity;
 import android.app.ListFragment;
 import android.app.ProgressDialog;
 import android.content.Context;
@@ -46,6 +47,7 @@ public class DeviceListFragment extends ListFragment implements PeerListListener
     ProgressDialog progressDialog = null;
     View mContentView = null;
     private WifiP2pDevice device;
+    public Activity parent;
 
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {

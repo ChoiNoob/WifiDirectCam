@@ -90,10 +90,10 @@ public class WiFiDirectBroadcastReceiver extends BroadcastReceiver {
 
             if (networkInfo.isConnected()) {
 
-                // we are connected with the other device, request connection
-                // info to find group owner IP
+                    // we are connected with the other device, request connection
+                    // info to find group owner IP
 
-                DeviceDetailFragment fragment = (DeviceDetailFragment) activity
+                    DeviceDetailFragment fragment = (DeviceDetailFragment) activity
                         .getFragmentManager().findFragmentById(R.id.frag_detail);
                 manager.requestConnectionInfo(channel, fragment);
             } else {

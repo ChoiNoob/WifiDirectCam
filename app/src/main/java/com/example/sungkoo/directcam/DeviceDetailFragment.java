@@ -16,6 +16,7 @@
 
 package com.example.sungkoo.directcam;
 
+import android.app.Activity;
 import android.app.Fragment;
 import android.app.ProgressDialog;
 import android.content.Context;
@@ -38,10 +39,8 @@ import android.widget.TextView;
 import com.example.sungkoo.directcam.DeviceListFragment.DeviceActionListener;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 
@@ -51,7 +50,7 @@ import java.net.Socket;
  */
 public class DeviceDetailFragment extends Fragment implements ConnectionInfoListener {
 
-	public static final String IP_SERVER = "192.168.49.1";
+	//public static final String IP_SERVER = "192.168.49.1";
 	public static int PORT = 8988;
 	private static boolean server_running = false;
 
@@ -60,6 +59,9 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
 	private WifiP2pDevice device;
 	private WifiP2pInfo info;
 	ProgressDialog progressDialog = null;
+
+	public Activity	parent;
+
 
 	@Override
 	public void onActivityCreated(Bundle savedInstanceState) {
@@ -138,6 +140,9 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
 
 	@Override
 	public void onConnectionInfoAvailable(final WifiP2pInfo info) {
+
+
+
 		if (progressDialog != null && progressDialog.isShowing()) {
 			progressDialog.dismiss();
 		}
@@ -147,15 +152,25 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
 		// The owner IP is now known.
 		TextView view = (TextView) mContentView.findViewById(R.id.group_owner);
 		view.setText(getResources().getString(R.string.group_owner_text)
-				+ ((info.isGroupOwner == true) ? getResources().getString(R.string.yes)
+				+ ((info.isGroupOwner == true) ? "yes"
 						: getResources().getString(R.string.no)));
 
 		// InetAddress from WifiP2pInfo struct.
 		view = (TextView) mContentView.findViewById(R.id.device_info);
 		view.setText("Group Owner IP - " + info.groupOwnerAddress.getHostAddress());
 
+		Log.d("IPInfo", info.groupOwnerAddress.getHostAddress());
+
 		mContentView.findViewById(R.id.btn_start_client).setVisibility(View.VISIBLE);
 
+		Intent	intent= new Intent();
+		intent.putExtra("isOwner",info.isGroupOwner);
+		intent.putExtra("ipAddress",info.groupOwnerAddress.getHostAddress());
+
+		getActivity().setResult(20002, intent);
+		getActivity().finish();
+
+		/* jmlee
 		if (!server_running){
 			new ServerAsyncTask(getActivity(), mContentView.findViewById(R.id.status_text)).execute();
 			server_running = true;
@@ -163,13 +178,15 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
 
 		// hide the connect button
 		mContentView.findViewById(R.id.btn_connect).setVisibility(View.GONE);
+		*/
 	}
 
-	/**
+	/*
 	 * Updates the UI with device data
-	 * 
-	 * @param device the device to be displayed
+	 *
+	 * @param  the device to be displayed
 	 */
+
 	public void showDetails(WifiP2pDevice device) {
 		this.device = device;
 		this.getView().setVisibility(View.VISIBLE);
@@ -207,12 +224,12 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
 		private final TextView statusText;
 
 		/**
-		 * @param context
-		 * @param statusText
-		 */
-		public ServerAsyncTask(Context context, View statusText) {
-			this.context = context;
-			this.statusText = (TextView) statusText;
+			* @param context
+					* @param statusText
+					*/
+			public ServerAsyncTask(Context context, View statusText) {
+				this.context = context;
+				this.statusText = (TextView) statusText;
 		}
 
 		@Override
@@ -233,7 +250,6 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
 
 				Log.d(WiFiDirectActivity.TAG, "server: copying files " + f.toString());
 				InputStream inputstream = client.getInputStream();
-				copyFile(inputstream, new FileOutputStream(f));
 				serverSocket.close();
 				server_running = false;
 				return f.getAbsolutePath();
@@ -270,21 +286,6 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
 
 	}
 
-	public static boolean copyFile(InputStream inputStream, OutputStream out) {
-		byte buf[] = new byte[1024];
-		int len;
-		try {
-			while ((len = inputStream.read(buf)) != -1) {
-				out.write(buf, 0, len);
 
-			}
-			out.close();
-			inputStream.close();
-		} catch (IOException e) {
-			Log.d(WiFiDirectActivity.TAG, e.toString());
-			return false;
-		}
-		return true;
-	}
 
 }
