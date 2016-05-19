@@ -15,7 +15,9 @@ import android.widget.Button;
 import android.widget.ImageView;
 
 import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -29,6 +31,8 @@ public class ClientActivirty extends AppCompatActivity{
 
     byte[]      picture=null;
 
+    Thread thread_button;
+    Thread thread;
     android.os.Handler handler = new android.os.Handler(){
         @Override
         public void handleMessage(Message msg) {
@@ -90,52 +94,86 @@ public class ClientActivirty extends AppCompatActivity{
 
         Button ChangeButton = (Button) findViewById(R.id.ChangeButton);
         ChangeButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Thread thread = new Thread(new Runnable() {
-                    public void run() {
-                        byte[] buffer = new byte[6000000];
-                        BufferedInputStream bis = null;
-                        FileOutputStream fos = null;
-                        DataInputStream dis = null;
-                        Message msg = new Message();
-                        int test = 0;
-                        try {
+                @Override
+                public void onClick(View view) {
 
-                            while(true) {
-                                bis = new BufferedInputStream(socket.getInputStream());
-                                dis = new DataInputStream(bis);
+                     thread_button = new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            BufferedOutputStream bos = null;
+                            DataOutputStream dos = null;
+                            //Boolean check=false;
 
-                                int length = (int)dis.readInt();
-                                buffer = new byte[length];
+                            try{
+                                bos = new BufferedOutputStream(socket.getOutputStream());
+                                dos = new DataOutputStream(bos);
+                                dos.writeBoolean(true);
+                                dos.flush();
+                                //check=true;
+                                Log.d("bokyung","thread gg");
+                                thread.start();
+                            }catch (IOException e){
 
-                                int mnt=0;
-                                while(mnt<length) {
-                                    int len=dis.read(buffer, mnt, length-mnt);
-                                    mnt += len;
-                                }
-                                Log.d("check read count", "mnt=" + mnt);
-                                picture= buffer;
-                                handler.sendEmptyMessage(1);
                             }
-                        } catch (IOException e) {
-                            Log.d("jmlee", e.toString());
-                        } finally {
+
+                        }
+                    });
+
+                    thread_button.start();
+
+                    thread = new Thread(new Runnable() {
+                        public void run() {
+
+
+                            byte[] buffer = new byte[6000000];
+                            BufferedInputStream bis = null;
+                            FileOutputStream fos = null;
+                            DataInputStream dis = null;
+                            Message msg = new Message();
+                            int test = 0;
                             try {
-                                bis.close();
+
+
+                                while (true) {
+                                    Log.d("bokyung", "hihi");
+                                    bis = new BufferedInputStream(socket.getInputStream());
+                                    dis = new DataInputStream(bis);
+
+                                    Log.d("bokyung", "hihi2");
+                                    int length = dis.readInt();//오류발생부분
+                                    Log.d("bokyung", "length=" + length);
+                                    buffer = new byte[length];
+
+                                    int mnt = 0;
+
+                                    while (mnt < length) {
+                                        Log.d("bokyung", "hihi3");
+                                        int len = dis.read(buffer, mnt, length - mnt);
+                                        mnt += len;
+                                    }
+                                    Log.d("check read count", "mnt=" + mnt);
+                                    picture = buffer;
+                                    handler.sendEmptyMessage(1);
+                                }
                             } catch (IOException e) {
+                                e.printStackTrace();
+                                Log.d("jmlee", e.toString());
+                            } finally {
+                                try {
+                                    bis.close();
+                                } catch (IOException e) {
+                                }
                             }
+
                         }
 
-                    }
+                    });
 
-                });
-
-                thread.start();
+               // thread.start();
 
 
-            }
-        });
+                }
+            });
 
     }
 
