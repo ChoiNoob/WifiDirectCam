@@ -1,12 +1,11 @@
-﻿package com.example.sungkoo.directcam;
+package com.example.sungkoo.directcam;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.opengl.GLES20;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Message;
-import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -22,23 +21,34 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 public class ClientActivirty extends AppCompatActivity{
     Socket socket = null;
 
-    public int count;
+
     public static String mediapath;
 
     byte[]      picture=null;
 
-    Thread thread_button;
-    Thread thread;
+    BufferedOutputStream bos ;
+    DataOutputStream dos ;
+    BufferedInputStream bis;
+    FileOutputStream fos ;
+    DataInputStream dis ;
+    File pictureFile;
+    Thread  thread_button;
+    Thread  thread_save;
+    Thread  thread;
     android.os.Handler handler = new android.os.Handler(){
         @Override
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
+            BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inSampleSize = 2;
             if(picture != null){
-                Bitmap  bitmap= BitmapFactory.decodeByteArray(picture, 0, picture.length);
+                Bitmap  bitmap= BitmapFactory.decodeByteArray(picture, 0, picture.length,options);
                 ImageView   iv=(ImageView)findViewById(R.id.imageView);
                 iv.setImageBitmap(bitmap);
             }
@@ -48,7 +58,7 @@ public class ClientActivirty extends AppCompatActivity{
     };
 
 
-    private static File getOutputMediaFile(int test){
+    private static File getOutputMediaFile(){
         //SD 카드가 마운트 되어있는지 먼저 확인
         // Environment.getExternalStorageState() 로 마운트 상태 확인 가능합니다
         File mediaStorageDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "MyCameraApp");
@@ -62,8 +72,8 @@ public class ClientActivirty extends AppCompatActivity{
         }
 
         // 파일명을 적당히 생성, 여기선 시간으로 파일명 중복을 피한다
-        String timestamp = "aaa"+test;
-        File mediaFile;
+        String timestamp =  new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+                File mediaFile;
 
         mediaFile = new File(mediaStorageDir.getPath() + File.separator + "IMG_" + timestamp + ".jpg");
         Log.i("MyCamera", "Saved at" + Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES));
@@ -82,17 +92,45 @@ public class ClientActivirty extends AppCompatActivity{
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
+        int[] maxTextureSize = new int[1];
+        GLES20.glGetIntegerv(GLES20.GL_MAX_TEXTURE_SIZE, maxTextureSize, 0);
 
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
+        thread_save = new Thread(new Runnable() {
             @Override
-            public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
+            public void run() {
+                pictureFile = getOutputMediaFile();
+                try{
+                Log.d("Camerasaving", "Savingbefore");
+                FileOutputStream fos = new FileOutputStream(pictureFile);
+                fos.write(picture);
+                fos.close();
+                Log.d("Camerasaving", "SavingAfter");
+                thread_save.interrupt();
+                }catch (IOException e){
+
+                }
             }
         });
 
-        Button ChangeButton = (Button) findViewById(R.id.ChangeButton);
+        try {
+            bos = new BufferedOutputStream(socket.getOutputStream());
+            dos = new DataOutputStream(bos);
+
+            bis = new BufferedInputStream(socket.getInputStream());
+            dis = new DataInputStream(bis);
+        }catch (IOException e){
+
+        }
+        Button SaveButton = (Button) findViewById(R.id.SaveButton);
+        SaveButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                thread_save.start();
+            }
+        });
+
+            Button ChangeButton = (Button) findViewById(R.id.ChangeButton);
         ChangeButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
@@ -100,13 +138,12 @@ public class ClientActivirty extends AppCompatActivity{
                      thread_button = new Thread(new Runnable() {
                         @Override
                         public void run() {
-                            BufferedOutputStream bos = null;
-                            DataOutputStream dos = null;
+                           /* BufferedOutputStream bos = null;
+                            DataOutputStream dos = null;*/
                             //Boolean check=false;
 
                             try{
-                                bos = new BufferedOutputStream(socket.getOutputStream());
-                                dos = new DataOutputStream(bos);
+
                                 dos.writeBoolean(true);
                                 dos.flush();
                                 //check=true;
@@ -121,49 +158,47 @@ public class ClientActivirty extends AppCompatActivity{
 
                     thread_button.start();
 
+
                     thread = new Thread(new Runnable() {
                         public void run() {
 
 
                             byte[] buffer = new byte[6000000];
-                            BufferedInputStream bis = null;
+                            /*BufferedInputStream bis = null;
                             FileOutputStream fos = null;
-                            DataInputStream dis = null;
-                            Message msg = new Message();
+                            DataInputStream dis = null;*/
+                           // Message msg = new Message();
                             int test = 0;
                             try {
 
 
                                 while (true) {
-                                    Log.d("bokyung", "hihi");
-                                    bis = new BufferedInputStream(socket.getInputStream());
-                                    dis = new DataInputStream(bis);
 
-                                    Log.d("bokyung", "hihi2");
-                                    int length = dis.readInt();//오류발생부분
-                                    Log.d("bokyung", "length=" + length);
+                                    //Log.d("bokyung", "hihi2");
+                                    int length = dis.readInt();
+                                    //Log.d("bokyung", "length=" + length);
                                     buffer = new byte[length];
 
                                     int mnt = 0;
 
                                     while (mnt < length) {
-                                        Log.d("bokyung", "hihi3");
+                                        //Log.d("bokyung", "hihi3");
                                         int len = dis.read(buffer, mnt, length - mnt);
                                         mnt += len;
                                     }
-                                    Log.d("check read count", "mnt=" + mnt);
+                                    //Log.d("check read count", "mnt=" + mnt);
                                     picture = buffer;
                                     handler.sendEmptyMessage(1);
                                 }
                             } catch (IOException e) {
                                 e.printStackTrace();
                                 Log.d("jmlee", e.toString());
-                            } finally {
+                            }/* finally {
                                 try {
                                     bis.close();
                                 } catch (IOException e) {
                                 }
-                            }
+                            }*/
 
                         }
 
