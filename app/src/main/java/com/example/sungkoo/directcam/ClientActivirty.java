@@ -1,4 +1,4 @@
-package com.example.sungkoo.directcam;
+﻿package com.example.sungkoo.directcam;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -25,7 +25,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 public class ClientActivirty extends AppCompatActivity{
-    Socket socket = null;
+     Socket socket = null;
 
 
     public static String mediapath;
@@ -41,21 +41,41 @@ public class ClientActivirty extends AppCompatActivity{
     Thread  thread_button;
     Thread  thread_save;
     Thread  thread;
+
+    //client image 소켓 받는 조건
     android.os.Handler handler = new android.os.Handler(){
         @Override
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
             BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inDither=false;
+
             options.inSampleSize = 2;
             if(picture != null){
                 Bitmap  bitmap= BitmapFactory.decodeByteArray(picture, 0, picture.length,options);
+                bitmap = imgRotate(bitmap);
                 ImageView   iv=(ImageView)findViewById(R.id.imageView);
                 iv.setImageBitmap(bitmap);
+                bitmap=null;
             }
 
         }
 
     };
+
+    private Bitmap imgRotate(Bitmap bmp){
+        int width = bmp.getWidth();
+        int height = bmp.getHeight();
+
+        Matrix matrix = new Matrix();
+        matrix.postRotate(90);
+
+        Bitmap resizedBitmap = Bitmap.createBitmap(bmp, 0, 0, width, height, matrix, true);
+        bmp.recycle();
+
+        return resizedBitmap;
+    }
+
 
 
     private static File getOutputMediaFile(){
