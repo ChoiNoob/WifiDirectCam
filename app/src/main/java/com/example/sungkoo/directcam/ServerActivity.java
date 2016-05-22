@@ -12,7 +12,9 @@ import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -27,14 +29,18 @@ public class ServerActivity extends Activity {
     private CameraPreview mPreview;
     public static String mediapath;
     public static boolean ack= false;
-
+    public Boolean result=false;
+    public Boolean set=false;
     ServerSocket    serverSocket= null;
     Socket          clientSocket= null;
 
-    BufferedOutputStream bos;// = new BufferedOutputStream(clientSocket.getOutputStream());
-    DataOutputStream outputStream;// = new DataOutputStream(bos);
-
+    BufferedOutputStream bos=null;// = new BufferedOutputStream(clientSocket.getOutputStream());
+    DataOutputStream dos=null;// = new DataOutputStream(bos);
+    BufferedInputStream bis=null;
+    DataInputStream dis=null;
     byte[]  b1, b2;
+    Thread  thread_datatransfer;
+    Thread  tread_wait;
 
     android.os.Handler handler = new android.os.Handler(){
         @Override
@@ -48,12 +54,12 @@ public class ServerActivity extends Activity {
 
     };
 
-    Thread  thread;
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        socket= SelectActivity.socket;
+        socket = SelectActivity.socket;
 
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
@@ -68,7 +74,6 @@ public class ServerActivity extends Activity {
 
         // 카메라 인스턴스 생성
         mCamera = getCameraInstance();
-
         // 프리뷰창을 생성하고 액티비티의 레아이웃으로 지정
         mPreview = new CameraPreview(this, mCamera);
         FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview);
@@ -77,19 +82,64 @@ public class ServerActivity extends Activity {
 
 
         try {
+
             bos = new BufferedOutputStream(socket.getOutputStream());
-            outputStream = new DataOutputStream(bos);
+            dos = new DataOutputStream(bos);
+
+            bis = new BufferedInputStream(socket.getInputStream());
+            dis = new DataInputStream(bis);
         }catch(IOException e){
 
         }
 
-        thread= new Thread(new Runnable(){
+        tread_wait = new Thread(new Runnable() {
             @Override
             public void run() {
-                try {
+                /*
+                try{
                     Thread.sleep(500);
-                }catch(InterruptedException e){
+                }catch (InterruptedException e){
+
                 }
+                */
+                while (true) {
+                    try {
+                        Log.d("start1", "result=" + result);
+                        Thread.sleep(1000);
+                        result = dis.readBoolean();
+
+                        if (result) {
+                            Log.d("start2", "result=" + result);
+                            thread_datatransfer.start();
+                        }else {
+                            thread_datatransfer.interrupt();
+                            Log.d("interrupt", "false call");
+                        }
+                        //dis.reset();
+                        //dis.close();
+                    }catch (IOException e){
+
+                    }catch (InterruptedException e){
+
+                    }
+
+                }
+
+            }
+        });
+        tread_wait.start();
+
+        thread_datatransfer= new Thread(new Runnable(){
+            @Override
+            public void run() {
+                Log.d("start3","result="+result);
+                //   if(result){
+                    /*
+                    try {
+                        Thread.sleep(500);
+                    }catch(InterruptedException e){
+                    }
+                    */
                 handler.sendEmptyMessage(1);
 
                 try {
@@ -98,36 +148,33 @@ public class ServerActivity extends Activity {
                 }
 
                 while(true) {
-                   try {
-                       //Thread.sleep(100);
+                    Log.d("start4","result="+result);
+                    try {
+                        Thread.sleep(100);
 
-                       while(ServerActivity.ack==false){
+                        while(ack==false){
+                            Thread.sleep(50);
+                        }
 
-                           Thread.sleep(50);
-                       }
-
-                       handler.sendEmptyMessage(1);
-
-                       b2=b1;
-                       b1=null;
-                       try {
-                           outputStream.writeInt(b2.length);
-                           outputStream.write(b2, 0, b2.length);
-                           outputStream.flush();
-                       }catch(IOException e){
-
-                       }
-
-
-
-                   } catch (InterruptedException e) {
+                        handler.sendEmptyMessage(1);
+                        b2=b1;
+                        b1=null;
+                        try {
+                            Log.d("bokyung","data");
+                            dos.writeInt(b2.length);
+                            dos.write(b2, 0, b2.length);
+                            dos.flush();
+                        }catch(IOException e){
+                        }
+                    } catch (InterruptedException e) {
                         break;
                     }
 
                 }
+//result    }
             }
         });
-        thread.start();
+        // thread_datatransfer.start();
         ack= true;
     }
 
@@ -161,6 +208,12 @@ public class ServerActivity extends Activity {
         return mCamera;
     }
 
+    public void onDestroy(){
+        bos=null;
+        dos=null;
+        bis=null;
+        dis=null;
+    }
     private Camera.PictureCallback mPicture = new Camera.PictureCallback() {
         @Override
         public void onPictureTaken(byte[] data, Camera camera) {
