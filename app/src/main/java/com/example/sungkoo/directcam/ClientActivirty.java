@@ -2,6 +2,7 @@
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
 import android.opengl.GLES20;
 import android.os.Bundle;
 import android.os.Environment;
@@ -25,7 +26,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 public class ClientActivirty extends AppCompatActivity{
-     Socket socket = null;
+    Socket socket = null;
 
 
     public static String mediapath;
@@ -43,6 +44,7 @@ public class ClientActivirty extends AppCompatActivity{
     Thread  thread;
 
     //client image 소켓 받는 조건
+    boolean receive =false;
     android.os.Handler handler = new android.os.Handler(){
         @Override
         public void handleMessage(Message msg) {
@@ -76,8 +78,6 @@ public class ClientActivirty extends AppCompatActivity{
         return resizedBitmap;
     }
 
-
-
     private static File getOutputMediaFile(){
         //SD 카드가 마운트 되어있는지 먼저 확인
         // Environment.getExternalStorageState() 로 마운트 상태 확인 가능합니다
@@ -97,6 +97,7 @@ public class ClientActivirty extends AppCompatActivity{
 
         mediaFile = new File(mediaStorageDir.getPath() + File.separator + "IMG_" + timestamp + ".jpg");
         Log.i("MyCamera", "Saved at" + Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES));
+
         System.out.println(mediaFile.getPath());
         mediapath = mediaFile.getPath();
         return mediaFile;
@@ -115,22 +116,9 @@ public class ClientActivirty extends AppCompatActivity{
         int[] maxTextureSize = new int[1];
         GLES20.glGetIntegerv(GLES20.GL_MAX_TEXTURE_SIZE, maxTextureSize, 0);
 
-        thread_save = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                pictureFile = getOutputMediaFile();
-                try{
-                Log.d("Camerasaving", "Savingbefore");
-                FileOutputStream fos = new FileOutputStream(pictureFile);
-                fos.write(picture);
-                fos.close();
-                Log.d("Camerasaving", "SavingAfter");
-                thread_save.interrupt();
-                }catch (IOException e){
+        //create시 receive=false;
+        receive=false;
 
-                }
-            }
-        });
 
         try {
             bos = new BufferedOutputStream(socket.getOutputStream());
@@ -145,7 +133,31 @@ public class ClientActivirty extends AppCompatActivity{
         SaveButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                thread_save = new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        pictureFile = getOutputMediaFile();
+                        try{
+                            Log.d("Camerasaving", "Savingbefore");
+                            FileOutputStream fos = new FileOutputStream(pictureFile);
+                            fos.write(picture);
+                            fos.close();
 
+                            //server socket 전송 막기
+                            dos.writeBoolean(false);
+                            dos.flush();
+
+                            //client socket 막기
+                            receive=false;
+                           // thread.start();
+
+                            Log.d("Camerasaving", "SavingAfter");
+                            thread_save.interrupt();
+                        }catch (IOException e){
+
+                        }
+                    }
+                });
                 thread_save.start();
             }
         });
@@ -163,6 +175,8 @@ public class ClientActivirty extends AppCompatActivity{
                             //Boolean check=false;
 
                             try{
+                                //socket 전송 받기
+                                receive=true;
 
                                 dos.writeBoolean(true);
                                 dos.flush();
@@ -192,7 +206,7 @@ public class ClientActivirty extends AppCompatActivity{
                             try {
 
 
-                                while (true) {
+                                while (receive) {
 
                                     //Log.d("bokyung", "hihi2");
                                     int length = dis.readInt();
@@ -209,6 +223,7 @@ public class ClientActivirty extends AppCompatActivity{
                                     //Log.d("check read count", "mnt=" + mnt);
                                     picture = buffer;
                                     handler.sendEmptyMessage(1);
+
                                 }
                             } catch (IOException e) {
                                 e.printStackTrace();
