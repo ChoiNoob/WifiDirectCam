@@ -1,11 +1,14 @@
 ﻿package com.example.sungkoo.directcam;
 
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
+import android.net.Uri;
 import android.opengl.GLES20;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
 import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
@@ -13,6 +16,10 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
+
+import com.google.android.gms.appindexing.Action;
+import com.google.android.gms.appindexing.AppIndex;
+import com.google.android.gms.common.api.GoogleApiClient;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -25,47 +32,53 @@ import java.net.Socket;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-public class ClientActivirty extends AppCompatActivity{
+public class ClientActivirty extends AppCompatActivity {
     Socket socket = null;
 
 
     public static String mediapath;
 
-    byte[]      picture=null;
-
-    BufferedOutputStream bos ;
-    DataOutputStream dos ;
+    byte[] picture = null;
+    byte[] b1=null;
+    BufferedOutputStream bos;
+    DataOutputStream dos;
     BufferedInputStream bis;
-    FileOutputStream fos ;
-    DataInputStream dis ;
+    FileOutputStream fos;
+    DataInputStream dis;
     File pictureFile;
-    Thread  thread_button;
-    Thread  thread_save;
-    Thread  thread;
+    Thread thread_button;
+    Thread thread_save;
+    Thread thread;
+    Thread thread_capture;
+
+    Button StartButton;
+    Button CaptureButton;
+    Button SaveButton;
+    Button BackButton;
 
     //client image 소켓 받는 조건
-    boolean receive =false;
-    android.os.Handler handler = new android.os.Handler(){
+    boolean receive = false;
+    Handler handler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
             BitmapFactory.Options options = new BitmapFactory.Options();
-            options.inDither=false;
+            options.inDither = false;
 
             options.inSampleSize = 2;
-            if(picture != null){
-                Bitmap  bitmap= BitmapFactory.decodeByteArray(picture, 0, picture.length,options);
+            if (picture != null) {
+                Bitmap bitmap = BitmapFactory.decodeByteArray(picture, 0, picture.length, options);
                 bitmap = imgRotate(bitmap);
-                ImageView   iv=(ImageView)findViewById(R.id.imageView);
+                ImageView iv = (ImageView) findViewById(R.id.imageView);
                 iv.setImageBitmap(bitmap);
-                bitmap=null;
+                bitmap = null;
             }
 
         }
 
     };
 
-    private Bitmap imgRotate(Bitmap bmp){
+    private Bitmap imgRotate(Bitmap bmp) {
         int width = bmp.getWidth();
         int height = bmp.getHeight();
 
@@ -103,21 +116,19 @@ public class ClientActivirty extends AppCompatActivity{
         return mediaFile;
     }
 
-
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        socket= SelectActivity.socket;
+        socket = SelectActivity.socket;
+
 
         setContentView(R.layout.activity_client_activirty);
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
 
         int[] maxTextureSize = new int[1];
         GLES20.glGetIntegerv(GLES20.GL_MAX_TEXTURE_SIZE, maxTextureSize, 0);
 
         //create시 receive=false;
-        receive=false;
+        receive = false;
 
 
         try {
@@ -126,127 +137,167 @@ public class ClientActivirty extends AppCompatActivity{
 
             bis = new BufferedInputStream(socket.getInputStream());
             dis = new DataInputStream(bis);
-        }catch (IOException e){
+        } catch (IOException e) {
 
         }
-        Button SaveButton = (Button) findViewById(R.id.SaveButton);
+        SaveButton = (Button) findViewById(R.id.SaveButton);
         SaveButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                thread_save = new Thread(new Runnable() {
-                    @Override
-                    public void run() {
+                StartButton.setVisibility(View.VISIBLE);
                         pictureFile = getOutputMediaFile();
-                        try{
+                        try {
                             Log.d("Camerasaving", "Savingbefore");
                             FileOutputStream fos = new FileOutputStream(pictureFile);
                             fos.write(picture);
                             fos.close();
 
-                            //server socket 전송 막기
-                            dos.writeBoolean(false);
-                            dos.flush();
-
-                            //client socket 막기
-                            receive=false;
-                           // thread.start();
-
                             Log.d("Camerasaving", "SavingAfter");
-                            thread_save.interrupt();
-                        }catch (IOException e){
+
+                            //thread_save.interrupt();
+                        } catch (IOException e) {
 
                         }
+                        //SaveButton.setEnabled(false);
+                    SaveButton.setVisibility(View.GONE);
                     }
-                });
-                thread_save.start();
-            }
+               //});
+               // thread_save.start();
+
+           // }
         });
 
-            Button ChangeButton = (Button) findViewById(R.id.ChangeButton);
-        ChangeButton.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
+        CaptureButton = (Button) findViewById(R.id.CaptureButton);
+        CaptureButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
 
-                     thread_button = new Thread(new Runnable() {
-                        @Override
-                        public void run() {
+                SaveButton.setVisibility(View.VISIBLE);
+                BackButton.setVisibility(View.VISIBLE);
+
+                try {
+                    handler.sendEmptyMessage(1);
+
+                    //client socket 막기
+                    receive=false;
+
+                    //server socket 전송 막기
+                    dos.writeBoolean(false);
+                    dos.flush();
+
+                    thread.interrupt();
+                    Log.d("bokyung","intent start");
+
+                }catch (IOException e){}
+                CaptureButton.setVisibility(View.GONE);
+            }
+        });
+        StartButton = (Button) findViewById(R.id.Startbutton);
+        StartButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                StartButton.setVisibility(View.GONE);
+                CaptureButton.setVisibility(View.VISIBLE);
+                thread_button = new Thread(new Runnable() {
+                    @Override
+                    public void run() {
                            /* BufferedOutputStream bos = null;
                             DataOutputStream dos = null;*/
-                            //Boolean check=false;
+                        //Boolean check=false;
 
-                            try{
-                                //socket 전송 받기
-                                receive=true;
+                        try {
+                            //socket 전송 받기
+                            receive = true;
 
-                                dos.writeBoolean(true);
-                                dos.flush();
-                                //check=true;
-                                Log.d("bokyung","thread gg");
-                                thread.start();
-                            }catch (IOException e){
+                            dos.writeBoolean(true);
+                            dos.flush();
+                            //check=true;
+                            Log.d("bokyung", "thread gg");
 
+
+                            while(true){
+                                if(thread != null){
+                                    thread.start();
+                                    break;
+                                }
                             }
 
+                        } catch (IOException e) {
+
                         }
-                    });
 
-                    thread_button.start();
+                    }
+                });
 
-
-                    thread = new Thread(new Runnable() {
-                        public void run() {
+                thread_button.start();
 
 
-                            byte[] buffer = new byte[6000000];
-                            /*BufferedInputStream bis = null;
-                            FileOutputStream fos = null;
-                            DataInputStream dis = null;*/
-                           // Message msg = new Message();
-                            int test = 0;
-                            try {
+                thread = new Thread(new Runnable() {
+                    public void run() {
 
 
-                                while (receive) {
+                        byte[] buffer = null;
+                        try {
 
-                                    //Log.d("bokyung", "hihi2");
-                                    int length = dis.readInt();
-                                    //Log.d("bokyung", "length=" + length);
-                                    buffer = new byte[length];
 
-                                    int mnt = 0;
+                            while (receive) {
 
-                                    while (mnt < length) {
-                                        //Log.d("bokyung", "hihi3");
-                                        int len = dis.read(buffer, mnt, length - mnt);
-                                        mnt += len;
-                                    }
-                                    //Log.d("check read count", "mnt=" + mnt);
-                                    picture = buffer;
-                                    handler.sendEmptyMessage(1);
+                                int length = dis.readInt();
+                                buffer = new byte[length];
 
+                                int mnt = 0;
+
+                                while (mnt < length) {
+                                    int len = dis.read(buffer, mnt, length - mnt);
+                                    mnt += len;
                                 }
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                                Log.d("jmlee", e.toString());
-                            }/* finally {
+                                //Log.d("check read count", "mnt=" + mnt);
+                                picture = buffer;
+                                b1=picture;
+                                handler.sendEmptyMessage(1);
+
+                            }
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                            Log.d("jmlee", e.toString());
+                        }/* finally {
                                 try {
                                     bis.close();
                                 } catch (IOException e) {
                                 }
                             }*/
 
-                        }
+                    }
 
-                    });
+                });
 
-               // thread.start();
+                // thread.start();
 
 
-                }
-            });
+            }
+        });
+
+        BackButton = (Button) findViewById(R.id.BackButton);
+        BackButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                BackButton.setVisibility(View.GONE);
+                CaptureButton.setVisibility(View.VISIBLE);
+                thread_button.start();
+
+            }
+        });
+
 
     }
 
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        thread.interrupt();
 
+        finish();
+
+    }
 }
