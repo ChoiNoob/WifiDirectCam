@@ -1,0 +1,10 @@
+[
+    {
+        "merged": "C:\\android project\\WiFiDirectFileTransfer\\app\\build\\intermediates\\res\\merged\\debug\\drawable-hdpi-v4\\ic_launcher.png",
+        "source": "C:\\android project\\WiFiDirectFileTransfer\\app\\src\\main\\res\\drawable-hdpi\\ic_launcher.png"
+    },
+    {
+        "merged": "C:\\android project\\WiFiDirectFileTransfer\\app\\build\\intermediates\\res\\merged\\debug\\drawable-hdpi-v4\\ic_action_search.png",
+        "source": "C:\\android project\\WiFiDirectFileTransfer\\app\\src\\main\\res\\drawable-hdpi\\ic_action_search.png"
+    }
+]
