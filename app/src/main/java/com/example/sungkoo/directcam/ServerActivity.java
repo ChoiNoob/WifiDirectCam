@@ -213,6 +213,8 @@ public class ServerActivity extends Activity {
         dos=null;
         bis=null;
         dis=null;
+        thread_datatransfer.interrupt();
+        tread_wait.interrupt();
     }
     private Camera.PictureCallback mPicture = new Camera.PictureCallback() {
         @Override
